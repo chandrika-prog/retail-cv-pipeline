@@ -1,0 +1,15 @@
+# Videos and large data
+data/clips/
+*.mp4
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pt
+
+# Database
+*.db
+
+# Events output
+*.jsonl
