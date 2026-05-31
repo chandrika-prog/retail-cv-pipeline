@@ -2,11 +2,19 @@ from ultralytics import YOLO
 import cv2, sys, json
 from datetime import datetime, timedelta
 from emit import make_event
+import httpx
+
+def post_event(event):
+    try:
+        httpx.post('http://localhost:8000/events/ingest', 
+                   json={'events': [event]}, timeout=5.0)
+    except:
+        pass  # don't crash detection if API is down
 
 model = YOLO("yolov8n.pt")
 
 # --- Config: edit these to match your video ---
-STORE_ID    = "STORE_BLR_002"
+STORE_ID    = "ST1008"
 CAMERA_ID   = "CAM_ENTRY_01"
 CLIP_START  = datetime(2026, 3, 3, 10, 0, 0)
 ZONE_ID     = "ENTRANCE"          # change per camera
@@ -63,6 +71,7 @@ def process_video(video_path, output_path="events.jsonl"):
                                        now, zone_id=ZONE_ID,
                                        confidence=conf, session_seq=1)
                         events.append(e)
+                        post_event(e)
                         print(f"  ENTRY   {vid} @ {now.strftime('%H:%M:%S')}  conf:{conf:.2f}")
 
                     else:
@@ -78,6 +87,7 @@ def process_video(video_path, output_path="events.jsonl"):
                                            confidence=conf,
                                            session_seq=visitor_seq[track_id])
                             events.append(e)
+                            post_event(e)
                             visitor_dwell_emitted[track_id] = now
                             print(f"  DWELL   {vid} @ {now.strftime('%H:%M:%S')}  {dwell_ms}ms")
 
@@ -94,6 +104,7 @@ def process_video(video_path, output_path="events.jsonl"):
                                confidence=0.99,
                                session_seq=visitor_seq[track_id])
                 events.append(e)
+                post_event(e)
                 print(f"  EXIT    {vid} @ {exit_ts.strftime('%H:%M:%S')}  total:{total_ms}ms")
                 active_ids.discard(track_id)
 
@@ -112,4 +123,8 @@ def process_video(video_path, output_path="events.jsonl"):
 if __name__ == "__main__":
     video_path  = sys.argv[1]
     output_file = sys.argv[2] if len(sys.argv) > 2 else "events.jsonl"
+    if len(sys.argv) > 3:
+        CAMERA_ID = sys.argv[3]
+    if len(sys.argv) > 4:
+        ZONE_ID = sys.argv[4]
     process_video(video_path, output_file)

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Apex Retail — Store Intelligence</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; }
+  .header {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    padding: 20px 32px;
+    border-bottom: 1px solid #00d4ff33;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .live-badge {
+    background: #ff4444; color: white; padding: 4px 12px;
+    border-radius: 20px; font-size: 12px; font-weight: bold;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+  .grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px; padding: 24px 32px 0;
+  }
+  .card {
+    background: #1a1a2e; border: 1px solid #ffffff11;
+    border-radius: 12px; padding: 20px; transition: border-color 0.3s;
+  }
+  .card:hover { border-color: #00d4ff44; }
+  .card .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .card .value { font-size: 36px; font-weight: bold; margin: 8px 0 4px; color: #00d4ff; }
+  .card .sub { font-size: 12px; color: #666; }
+  .card.warn .value { color: #ffaa00; }
+  .card.ok .value { color: #00ff88; }
+  .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 32px 24px; }
+  .panel {
+    background: #1a1a2e; border: 1px solid #ffffff11;
+    border-radius: 12px; padding: 20px;
+  }
+  .panel h3 { font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .feed { height: 280px; overflow-y: auto; }
+  .feed-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid #ffffff08;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform: translateX(-10px); } to { opacity:1; } }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; min-width: 90px; text-align: center; }
+  .ENTRY { background: #00ff8822; color: #00ff88; }
+  .EXIT { background: #ff444422; color: #ff4444; }
+  .ZONE_DWELL { background: #00d4ff22; color: #00d4ff; }
+  .REENTRY { background: #ffaa0022; color: #ffaa00; }
+  .BILLING_QUEUE_JOIN { background: #ff880022; color: #ff8800; }
+  .feed-time { font-size: 11px; color: #555; min-width: 60px; }
+  .feed-visitor { font-size: 12px; color: #aaa; }
+  .feed-conf { font-size: 11px; color: #555; margin-left: auto; }
+  .chart-wrap { height: 260px; position: relative; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div style="font-size:22px;color:#00d4ff;letter-spacing:2px;font-weight:bold;">
+      ◈ APEX RETAIL — STORE INTELLIGENCE
+    </div>
+    <div style="font-size:13px;color:#888;margin-top:4px;">
+      ST1008 &nbsp;|&nbsp; Brigade Road, Bengaluru &nbsp;|&nbsp;
+      <span id="clock" style="color:#555"></span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div id="conn-status" style="font-size:12px;color:#555">Connecting...</div>
+    <div class="live-badge">● LIVE</div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card ok">
+    <div class="label">Unique Visitors</div>
+    <div class="value" id="kpi-visitors">—</div>
+    <div class="sub">today</div>
+  </div>
+  <div class="card">
+    <div class="label">Conversion Rate</div>
+    <div class="value" id="kpi-conversion">—</div>
+    <div class="sub">visitors → purchase</div>
+  </div>
+  <div class="card">
+    <div class="label">Avg Dwell Time</div>
+    <div class="value" id="kpi-dwell">—</div>
+    <div class="sub">per zone visit</div>
+  </div>
+  <div class="card warn">
+    <div class="label">Active Anomalies</div>
+    <div class="value" id="kpi-anomalies">—</div>
+    <div class="sub">alerts</div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="panel">
+    <h3>⚡ Live Event Feed</h3>
+    <div class="feed" id="feed"></div>
+  </div>
+  <div class="panel">
+    <h3>📊 Conversion Funnel</h3>
+    <div class="chart-wrap">
+      <canvas id="funnelChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE = 'ST1008';
+const API   = '';
+
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}, 1000);
+
+const ctx = document.getElementById('funnelChart').getContext('2d');
+const funnelChart = new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: ['Entry', 'Zone Visit', 'Billing', 'Purchase'],
+    datasets: [{
+      label: 'Visitors',
+      data: [0, 0, 0, 0],
+      backgroundColor: ['#00d4ff44','#00d4ff33','#00d4ff22','#00d4ff11'],
+      borderColor: ['#00d4ff','#00d4ff99','#00d4ff66','#00d4ff33'],
+      borderWidth: 2, borderRadius: 6,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { color: '#ffffff08' }, ticks: { color: '#888' } },
+      y: { grid: { color: '#ffffff08' }, ticks: { color: '#888' } }
+    }
+  }
+});
+
+async function refreshMetrics() {
+  try {
+    const [m, f, a] = await Promise.all([
+      fetch(`${API}/stores/${STORE}/metrics`).then(r=>r.json()),
+      fetch(`${API}/stores/${STORE}/funnel`).then(r=>r.json()),
+      fetch(`${API}/stores/${STORE}/anomalies`).then(r=>r.json()),
+    ]);
+    document.getElementById('kpi-visitors').textContent   = m.unique_visitors;
+    document.getElementById('kpi-conversion').textContent = (m.conversion_rate*100).toFixed(1)+'%';
+    document.getElementById('kpi-dwell').textContent      = Math.round(m.avg_dwell_ms/1000)+'s';
+    document.getElementById('kpi-anomalies').textContent  = a.anomalies.length;
+    funnelChart.data.datasets[0].data = f.funnel.map(s => s.visitors);
+    funnelChart.update();
+  } catch(e) { console.error(e); }
+}
+
+function addFeedItem(ev) {
+  const feed = document.getElementById('feed');
+  const time = ev.timestamp ? ev.timestamp.split('T')[1].replace('Z','') : '--:--:--';
+  const div  = document.createElement('div');
+  div.className = 'feed-item';
+  div.innerHTML = `
+    <span class="feed-time">${time}</span>
+    <span class="badge ${ev.event_type}">${ev.event_type}</span>
+    <span class="feed-visitor">${ev.visitor_id}</span>
+    <span class="feed-conf">conf:${ev.confidence?.toFixed(2) ?? '—'}</span>
+  `;
+  feed.insertBefore(div, feed.firstChild);
+  if (feed.children.length > 50) feed.removeChild(feed.lastChild);
+}
+
+function connectWS() {
+  const ws = new WebSocket(`ws://localhost:8000/ws/live/${STORE}`);
+  ws.onopen = () => {
+    document.getElementById('conn-status').textContent = '● Connected';
+    document.getElementById('conn-status').style.color = '#00ff88';
+  };
+  ws.onmessage = (msg) => {
+    const payload = JSON.parse(msg.data);
+    if (payload.type === 'event') { addFeedItem(payload.data); refreshMetrics(); }
+  };
+  ws.onclose = () => {
+    document.getElementById('conn-status').textContent = '○ Reconnecting...';
+    document.getElementById('conn-status').style.color = '#ff4444';
+    setTimeout(connectWS, 3000);
+  };
+}
+
+refreshMetrics();
+setInterval(refreshMetrics, 1000);
+connectWS();
+</script>
+</body>
+</html>
