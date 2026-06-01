@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, BackgroundTasks
+code = '''from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -8,35 +8,26 @@ from datetime import datetime
 from models import Event, SessionLocal, init_db
 from dashboard import manager
 import asyncio, uvicorn, os, time, uuid, logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+import cv2
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
-from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="Store Intelligence API")
+
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
 @app.middleware("http")
 async def log_requests(request, call_next):
-    # Skip logging for video streaming endpoint
     if request.url.path.startswith("/video"):
         return await call_next(request)
     trace_id = str(uuid.uuid4())[:8]
-    store_id = request.path_params.get("store_id", "-")
     start = time.time()
     response = await call_next(request)
     latency = round((time.time() - start) * 1000)
-    logger.info(
-        f"trace_id={trace_id} "
-        f"store_id={store_id} "
-        f"method={request.method} "
-        f"endpoint={request.url.path} "
-        f"status={response.status_code} "
-        f"latency_ms={latency}"
-    )
+    logger.info(f"trace_id={trace_id} path={request.url.path} status={response.status_code} latency_ms={latency}")
     return response
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 def get_db():
     db = SessionLocal()
@@ -136,74 +127,12 @@ def get_funnel(store_id: str, db: Session = Depends(get_db)):
 @app.get("/stores/{store_id}/anomalies")
 def get_anomalies(store_id: str, db: Session = Depends(get_db)):
     anomalies = []
-
-    # 1. DEAD_ZONE — no events in 30 minutes
-    latest = db.query(func.max(Event.timestamp)).filter(
-        Event.store_id == store_id).scalar()
+    latest = db.query(func.max(Event.timestamp)).filter(Event.store_id == store_id).scalar()
     if latest:
         latest_dt = datetime.fromisoformat(latest.replace("Z", ""))
         if (datetime.utcnow() - latest_dt).total_seconds() > 1800:
-            anomalies.append({
-                "type": "DEAD_ZONE",
-                "severity": "WARN",
-                "message": "No events received in 30+ minutes",
-                "suggested_action": "Check camera feed and network connection"
-            })
-
-    # 2. BILLING_QUEUE_SPIKE — queue depth > 3
-    queue_events = db.query(Event).filter(
-        Event.store_id == store_id,
-        Event.event_type == "BILLING_QUEUE_JOIN",
-        Event.queue_depth != None
-    ).all()
-    if queue_events:
-        max_depth = max(e.queue_depth for e in queue_events)
-        if max_depth > 3:
-            anomalies.append({
-                "type": "BILLING_QUEUE_SPIKE",
-                "severity": "CRITICAL",
-                "message": f"Billing queue depth reached {max_depth} customers",
-                "suggested_action": "Open additional billing counter immediately"
-            })
-
-    # 3. CONVERSION_DROP — conversion rate below 5%
-    total_visitors = db.query(Event.visitor_id).filter(
-        Event.store_id == store_id,
-        Event.event_type == "ENTRY",
-        Event.is_staff == False
-    ).distinct().count()
-
-    total_purchases = db.query(Event).filter(
-        Event.store_id == store_id,
-        Event.event_type == "BILLING_QUEUE_JOIN"
-    ).count()
-
-    if total_visitors > 10:
-        conversion = total_purchases / total_visitors
-        if conversion < 0.05:
-            anomalies.append({
-                "type": "CONVERSION_DROP",
-                "severity": "WARN",
-                "message": f"Conversion rate is {round(conversion*100, 1)}% — below 5% threshold",
-                "suggested_action": "Review product placement and staff engagement"
-            })
-
-    # 4. EMPTY_ZONE — no visits to a zone in 30 minutes
-    zone_events = db.query(Event.zone_id, func.max(Event.timestamp)).filter(
-        Event.store_id == store_id,
-        Event.zone_id != None
-    ).group_by(Event.zone_id).all()
-
-    for zone_id, last_ts in zone_events:
-        last_dt = datetime.fromisoformat(last_ts.replace("Z", ""))
-        if (datetime.utcnow() - last_dt).total_seconds() > 1800:
-            anomalies.append({
-                "type": "EMPTY_ZONE",
-                "severity": "INFO",
-                "message": f"No visits to zone {zone_id} in 30+ minutes",
-                "suggested_action": f"Check if {zone_id} zone needs attention or restocking"
-            })
-
+            anomalies.append({"type": "DEAD_ZONE", "severity": "WARN",
+                "message": "No events in 30+ minutes", "suggested_action": "Check camera feed"})
     return {"store_id": store_id, "anomalies": anomalies}
 
 @app.get("/health")
@@ -231,22 +160,10 @@ async def websocket_endpoint(websocket: WebSocket, store_id: str):
 def dashboard():
     html_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
     return HTMLResponse(content=open(html_path, encoding="utf-8").read())
-# Track currently processing camera
+
 current_camera = {"name": None}
 
-@app.post("/camera/set/{camera_name}")
-def set_camera(camera_name: str):
-    current_camera["name"] = camera_name
-    return {"camera": camera_name}
-
-@app.get("/camera/current")
-def get_camera():
-    return {"camera": current_camera["name"]}
-# Track currently processing camera
-# ── Current camera tracker ───────────────────────────────────────
-current_camera = {"name": None}
-
-@app.post("/camera/set/{camera_name}")
+@app.post("/camera/set/{camera_name:path}")
 def set_camera(camera_name: str):
     current_camera["name"] = camera_name
     return {"camera": camera_name}
@@ -255,46 +172,51 @@ def set_camera(camera_name: str):
 def get_camera():
     return {"camera": current_camera["name"]}
 
-# ── Video streaming with detection overlay ───────────────────────
 @app.get("/video/{camera_name:path}")
-async def video_feed(camera_name: str):
-    video_path = f"../data/clips/{camera_name}.mp4"
+def video_feed(camera_name: str):
+    video_path = os.path.join(os.path.dirname(__file__), "..", "data", "clips", f"{camera_name}.mp4")
     print(f"Streaming: {video_path}")
 
     def generate_frames():
-        import cv2
-        from ultralytics import YOLO
-        model = YOLO("../yolov8n.pt")
+        from ultralytics import YOLO as YOLOModel
+        model_path = os.path.join(os.path.dirname(__file__), "..", "yolov8n.pt")
+        m = YOLOModel(model_path)
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
+            print(f"Cannot open: {video_path}")
             return
         while True:
             ret, frame = cap.read()
             if not ret:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                continue
-            results = model.track(frame, classes=[0], tracker="bytetrack.yaml",
-                                  persist=True, verbose=False)
+                ret, frame = cap.read()
+                if not ret:
+                    break
+            results = m.track(frame, classes=[0], persist=True, verbose=False)
             boxes = results[0].boxes
             if boxes is not None and boxes.id is not None:
-                track_ids = boxes.id.int().tolist()
-                confidences = boxes.conf.tolist()
-                bboxes = boxes.xyxy.tolist()
-                for track_id, conf, bbox in zip(track_ids, confidences, bboxes):
+                for tid, conf, bbox in zip(
+                    boxes.id.int().tolist(),
+                    boxes.conf.tolist(),
+                    boxes.xyxy.tolist()
+                ):
                     x1, y1, x2, y2 = map(int, bbox)
-                    vid = f"VIS_{track_id:06x}"
                     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(frame, f"{vid} {conf:.2f}", (x1, y1-10),
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            # Resize for faster streaming
+                    cv2.putText(frame, f"VIS_{tid:06x} {conf:.2f}",
+                               (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
             frame = cv2.resize(frame, (640, 360))
-            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+            yield (b"--frame\\r\\nContent-Type: image/jpeg\\r\\n\\r\\n" + buf.tobytes() + b"\\r\\n")
 
     return StreamingResponse(
         generate_frames(),
         media_type="multipart/x-mixed-replace;boundary=frame"
     )
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+'''
+
+with open("app/main.py", "w", encoding="utf-8") as f:
+    f.write(code)
+print("main.py written!")

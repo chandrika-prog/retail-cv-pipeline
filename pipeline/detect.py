@@ -6,10 +6,16 @@ import httpx
 
 def post_event(event):
     try:
-        httpx.post('http://localhost:8000/events/ingest', 
+        httpx.post('http://localhost:8000/events/ingest',
                    json={'events': [event]}, timeout=5.0)
     except:
-        pass  # don't crash detection if API is down
+        pass
+
+def set_current_camera(camera_name):
+    try:
+        httpx.post(f'http://localhost:8000/camera/set/{camera_name}', timeout=5.0)
+    except:
+        pass
 
 model = YOLO("yolov8n.pt")
 
@@ -28,6 +34,7 @@ def process_video(video_path, output_path="events.jsonl"):
     fps      = cap.get(cv2.CAP_PROP_FPS)
     total    = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     print(f"Processing: {video_path}  |  FPS:{fps:.1f}  |  Frames:{total}")
+    set_current_camera(CAMERA_ID)
 
     SAMPLE_EVERY = int(fps)   # one sample per second
 
