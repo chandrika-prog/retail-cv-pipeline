@@ -16,11 +16,26 @@ Open:
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/health
 
+## Submission Notes
+
+This repository contains the application code, tests, Docker setup, store configuration, POS sample, layout images, and sample event loader. The MP4 camera clips are intentionally not committed because several files are larger than GitHub's normal 100 MB file limit. To run full video detection, place the extracted Store 1 and Store 2 MP4 files under `data/challenge` using the same folder names from the challenge dataset.
+
+Implemented highlights:
+
+- Store 1 and Store 2 dashboard switching
+- Live event ingest with WebSocket updates
+- YOLO/ByteTrack-based camera event generation
+- Uniform-based staff filtering, including Store 2 pink/black uniforms
+- POS mapping from legacy `ST1008` transactions to `ST1` and `ST2`
+- Funnel, conversion, dwell, heatmap, queue, and anomaly APIs
+- Docker and local demo commands
+- Pytest coverage for API behavior, store isolation, POS correlation, and staff color detection
+
 ## Dataset
 
 The current challenge files live under `data/challenge`:
 
-- `Store 1/` and `Store 2/` camera clips and layouts
+- `Store 1/` and `Store 2/` camera clips and layouts, after extracting the provided dataset locally
 - `sample_events.jsonl`
 - `pos_transactions.csv`
 - `Purplle_Tech_Challenge.pdf`
@@ -115,6 +130,15 @@ For local non-Docker commands:
 ```powershell
 python demo.py commands
 ```
+
+## Demo Video Checklist
+
+1. Start the API and open the dashboard.
+2. Show the Store 1 / Store 2 dropdown.
+3. Run `run_all_cameras.py` to stream camera-derived events.
+4. Run `demo.py load-pos` to map POS transactions into both stores.
+5. Show live feed, KPIs, conversion funnel, heatmap, and anomalies updating.
+6. Run `python -m pytest -q` or `python demo.py check` to show validation.
 
 ## API Endpoints
 
