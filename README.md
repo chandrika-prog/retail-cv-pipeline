@@ -20,6 +20,13 @@ Open:
 
 This repository contains the application code, tests, Docker setup, store configuration, POS sample, layout images, and sample event loader. The MP4 camera clips are intentionally not committed because several files are larger than GitHub's normal 100 MB file limit. To run full video detection, place the extracted Store 1 and Store 2 MP4 files under `data/challenge` using the same folder names from the challenge dataset.
 
+Mandatory deliverables included:
+
+- `deliverables/final_event_log.jsonl`: generated event log in JSONL format using challenge-style event names and fields
+- `README.md`: setup, validation, Docker, and demo instructions
+- `DESIGN.md`: architecture, analytics design, staff/re-entry handling, and AI-Assisted Decisions
+- `CHOICES.md`: model selection, schema design, API architecture, and AI-Assisted Decisions
+
 Implemented highlights:
 
 - Store 1 and Store 2 dashboard switching
@@ -39,6 +46,28 @@ The current challenge files live under `data/challenge`:
 - `sample_events.jsonl`
 - `pos_transactions.csv`
 - `Purplle_Tech_Challenge.pdf`
+
+## Event Log Deliverable
+
+The final generated event log is:
+
+```text
+deliverables/final_event_log.jsonl
+```
+
+It is produced from detector outputs and uses the same JSONL style as the provided `sample_events.jsonl`: one JSON object per line, with event types such as `entry`, `exit`, `reentry`, `zone_entered`, `zone_exited`, `zone_dwell`, `queue_completed`, and `queue_abandoned`.
+
+Regenerate it after running detection:
+
+```powershell
+python export_event_log.py
+```
+
+Validate that it is parseable JSONL:
+
+```powershell
+python -c "import json; [json.loads(line) for line in open('deliverables/final_event_log.jsonl', encoding='utf-8') if line.strip()]; print('valid jsonl')"
+```
 
 ## Quick Validation
 

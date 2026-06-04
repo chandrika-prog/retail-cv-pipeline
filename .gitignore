@@ -13,4 +13,7 @@ __pycache__/
 
 # Events output
 *.jsonl
+!data/challenge/sample_events.jsonl
+!deliverables/
+!deliverables/*.jsonl
 outputs/
