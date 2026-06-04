@@ -11,7 +11,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY pipeline/ ./pipeline/
 COPY docs/ ./docs/
+COPY tests/ ./tests/
 COPY *.py ./
+COPY pytest.ini ./
 COPY README.md ./
 
 ENV PYTHONPATH=/workspace/app:/workspace/pipeline
