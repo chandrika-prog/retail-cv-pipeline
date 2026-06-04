@@ -1,0 +1,23 @@
+{
+  "stores": {
+    "ST1": {
+      "name": "Store 1",
+      "staff_uniforms": ["black"],
+      "zones": {
+        "ENTRY": "Entry Threshold",
+        "ZONE_01": "Main Floor Zone 1",
+        "ZONE_02": "Main Floor Zone 2",
+        "BILLING": "Billing Counter"
+      }
+    },
+    "ST2": {
+      "name": "Store 2",
+      "staff_uniforms": ["black", "pink"],
+      "zones": {
+        "ENTRY": "Entry Threshold",
+        "ZONE_01": "Main Floor Zone",
+        "BILLING": "Billing Counter"
+      }
+    }
+  }
+}

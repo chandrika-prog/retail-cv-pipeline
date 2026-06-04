@@ -1,0 +1,14 @@
+.git
+.agents
+.codex
+.runtime
+outputs
+__pycache__
+.pytest_cache
+*.pyc
+*.pyo
+*.db
+*.log
+events_*.jsonl
+events_store*.jsonl
+data

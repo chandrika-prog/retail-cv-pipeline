@@ -5,3 +5,14 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/workspace/app:/workspace/pipeline
+      - DATABASE_URL=sqlite:////workspace/.runtime/store.db
+    volumes:
+      - ./data:/workspace/data
+      - ./.runtime:/workspace/.runtime
+      - ./outputs:/workspace/outputs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

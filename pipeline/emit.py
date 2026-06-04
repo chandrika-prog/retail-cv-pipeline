@@ -1,5 +1,11 @@
+import hashlib
 import uuid
 from datetime import datetime, timedelta
+
+def deterministic_event_id(*parts):
+    key = "|".join(str(part) for part in parts)
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()
+    return str(uuid.UUID(digest[:32]))
 
 def make_event(
     store_id,
@@ -15,13 +21,17 @@ def make_event(
     sku_zone=None,
     session_seq=1
 ):
+    timestamp_str = timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
     return {
-        "event_id": str(uuid.uuid4()),
+        "event_id": deterministic_event_id(
+            store_id, camera_id, visitor_id, event_type,
+            timestamp_str, zone_id, session_seq
+        ),
         "store_id": store_id,
         "camera_id": camera_id,
         "visitor_id": visitor_id,
         "event_type": event_type,
-        "timestamp": timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp": timestamp_str,
         "zone_id": zone_id,
         "dwell_ms": dwell_ms,
         "is_staff": is_staff,

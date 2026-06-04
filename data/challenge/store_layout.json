@@ -1,0 +1,71 @@
+{
+  "stores": {
+    "ST1": {
+      "store_name": "Store 1",
+      "open_hours": {
+        "start": "10:00:00",
+        "end": "22:00:00"
+      },
+      "zones": [
+        {
+          "zone_id": "ENTRY",
+          "zone_name": "Entry Threshold",
+          "zone_type": "ENTRY",
+          "camera_ids": ["STORE1_ENTRY_01"],
+          "is_revenue_zone": false
+        },
+        {
+          "zone_id": "ZONE_01",
+          "zone_name": "Main Floor Zone 1",
+          "zone_type": "SHELF",
+          "camera_ids": ["STORE1_ZONE_01"],
+          "is_revenue_zone": true
+        },
+        {
+          "zone_id": "ZONE_02",
+          "zone_name": "Main Floor Zone 2",
+          "zone_type": "SHELF",
+          "camera_ids": ["STORE1_ZONE_02"],
+          "is_revenue_zone": true
+        },
+        {
+          "zone_id": "BILLING",
+          "zone_name": "Billing Counter",
+          "zone_type": "BILLING",
+          "camera_ids": ["STORE1_BILLING_01"],
+          "is_revenue_zone": true
+        }
+      ]
+    },
+    "ST2": {
+      "store_name": "Store 2",
+      "open_hours": {
+        "start": "10:00:00",
+        "end": "22:00:00"
+      },
+      "zones": [
+        {
+          "zone_id": "ENTRY",
+          "zone_name": "Entry Threshold",
+          "zone_type": "ENTRY",
+          "camera_ids": ["STORE2_ENTRY_01", "STORE2_ENTRY_02"],
+          "is_revenue_zone": false
+        },
+        {
+          "zone_id": "ZONE_01",
+          "zone_name": "Main Floor Zone",
+          "zone_type": "SHELF",
+          "camera_ids": ["STORE2_ZONE_01"],
+          "is_revenue_zone": true
+        },
+        {
+          "zone_id": "BILLING",
+          "zone_name": "Billing Counter",
+          "zone_type": "BILLING",
+          "camera_ids": ["STORE2_BILLING_01"],
+          "is_revenue_zone": true
+        }
+      ]
+    }
+  }
+}

@@ -1,98 +1,150 @@
-\# Store Intelligence API
+# Store Intelligence API
 
+End-to-end retail analytics pipeline for the Purplle store intelligence challenge: CCTV clips -> structured events -> real-time API metrics -> live dashboard.
 
+## Setup
 
-End-to-end retail analytics pipeline: CCTV footage → people detection → structured events → live REST API.
-
-
-
-\## Setup (5 commands)
-
-
-
+```powershell
 git clone <your-repo-url>
-
 cd store-intelligence
-
-python -m venv venv \&\& venv\\Scripts\\activate
-
-pip install -r requirements.txt
-
 docker compose up --build
+```
 
+Open:
 
+- Dashboard: http://localhost:8000/dashboard
+- API docs: http://localhost:8000/docs
+- Health: http://localhost:8000/health
 
-\## Run Detection Pipeline
+## Dataset
 
+The current challenge files live under `data/challenge`:
 
+- `Store 1/` and `Store 2/` camera clips and layouts
+- `sample_events.jsonl`
+- `pos_transactions.csv`
+- `Purplle_Tech_Challenge.pdf`
 
-Process each camera clip and emit structured events:
+## Quick Validation
 
+Load the provided sample events into the running Docker API:
 
+```powershell
+docker compose exec api python load_sample_events.py --api http://127.0.0.1:8000/events/ingest
+```
 
-&#x20;   python pipeline\\detect.py "data\\clips\\CAM 1.mp4" events\_cam1.jsonl
+Then check:
 
-&#x20;   python pipeline\\detect.py "data\\clips\\CAM 2.mp4" events\_cam2.jsonl
+```powershell
+curl http://localhost:8000/stores/ST1076/metrics
+curl http://localhost:8000/stores/ST1076/funnel
+curl http://localhost:8000/stores/ST1076/heatmap
+curl http://localhost:8000/stores/ST1076/anomalies
+```
 
-&#x20;   python pipeline\\detect.py "data\\clips\\CAM 3.mp4" events\_cam3.jsonl
+## Run Detection Pipeline
 
-&#x20;   python pipeline\\detect.py "data\\clips\\CAM 4.mp4" events\_cam4.jsonl
+The runner processes the extracted Store 1 and Store 2 clips and streams events to the API:
 
-&#x20;   python pipeline\\detect.py "data\\clips\\CAM 5.mp4" events\_cam5.jsonl
+```powershell
+docker compose exec api python run_all_cameras.py --api http://127.0.0.1:8000
+```
 
+Outputs are written to `outputs/`. The detector emits raw track counts, uniform staff identities, qualified visitors, and excluded short-pass/staff-like tracks so dashboard numbers are explainable.
 
+Each detection output also writes a sidecar summary file:
 
-\## Ingest Events into API
+```text
+outputs/events_store1_entry.summary.json
+```
 
+Store-specific detection settings live in:
 
+```text
+data/challenge/store_config.json
+```
 
-&#x20;   python -c "
+Heatmap zone metadata lives in:
 
-&#x20;   import json, httpx
+```text
+data/challenge/store_layout.json
+```
 
-&#x20;   all\_events = \[]
+## Load POS Transactions
 
-&#x20;   for i in range(1, 6):
+The POS CSV uses a legacy/anonymized `ST1008` store ID. For this two-store demo, map it explicitly to Store 1 and Store 2:
 
-&#x20;       try:
+```powershell
+docker compose exec api python load_pos.py --store-id ST1 --api http://127.0.0.1:8000/events/ingest
+docker compose exec api python load_pos.py --store-id ST2 --api http://127.0.0.1:8000/events/ingest
+```
 
-&#x20;           events = \[json.loads(l) for l in open(f'events\_cam{i}.jsonl')]
+POS rows are stored as `POS_TRANSACTION` events. A purchase is counted when a non-staff visitor was in the billing queue within the 5 minutes before the transaction.
 
-&#x20;           all\_events.extend(events)
+Load only a time window if needed:
 
-&#x20;       except: pass
+```powershell
+docker compose exec api python load_pos.py --store-id ST1 --start 20:10:00 --end 20:12:30 --api http://127.0.0.1:8000/events/ingest
+```
 
-&#x20;   httpx.post('http://localhost:8000/events/ingest', json={'events': all\_events})
+## Clean Demo Run
 
-&#x20;   print('Done')
+```powershell
+python demo.py reset
+python demo.py check
+```
 
-&#x20;   "
+Start the API:
 
+```powershell
+docker compose up --build
+```
 
+In a second terminal, run the pipeline and POS loader:
 
-\## API Endpoints
+```powershell
+docker compose exec api python run_all_cameras.py --api http://127.0.0.1:8000
+docker compose exec api python demo.py load-pos --api http://127.0.0.1:8000
+docker compose exec api python demo.py smoke --api http://127.0.0.1:8000
+```
 
+Use the dashboard dropdown to switch between Store 1 and Store 2.
 
+For local non-Docker commands:
+
+```powershell
+python demo.py commands
+```
+
+## API Endpoints
 
 | Endpoint | Description |
-
 |---|---|
+| `POST /events/ingest` | Validates, deduplicates, normalizes, and stores events |
+| `GET /stores/{id}/metrics` | Qualified visitors, conversion, dwell, queue, abandonment |
+| `GET /stores/{id}/funnel` | Entry -> Zone Visit -> Billing Queue -> Purchase |
+| `GET /stores/{id}/heatmap` | Zone visit/dwell intensity, normalized 0-100 |
+| `GET /stores/{id}/anomalies` | Dead zones, queue spikes, conversion drops |
+| `GET /health` | Service status and stale-feed checks |
 
-| POST /events/ingest | Ingest up to 500 events (idempotent) |
+## Local Development
 
-| GET /stores/{id}/metrics | Unique visitors, conversion rate, avg dwell |
+```powershell
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+cd app
+python -m uvicorn main:app --host 127.0.0.1 --port 8001
+```
 
-| GET /stores/{id}/funnel | Entry → Zone → Billing → Purchase funnel |
+Then use `http://127.0.0.1:8001/dashboard`.
 
-| GET /stores/{id}/anomalies | Queue spikes, dead zones, conversion drops |
+For Store 1 / Store 2 local demo:
 
-| GET /health | Service status + stale feed detection |
+```powershell
+python run_all_cameras.py --api http://127.0.0.1:8001
+python load_pos.py --store-id ST1 --api http://127.0.0.1:8001/events/ingest
+python load_pos.py --store-id ST2 --api http://127.0.0.1:8001/events/ingest
+```
 
-
-
-Interactive docs: http://localhost:8000/docs
-
-
-
-\## Architecture
-
+Then open `http://127.0.0.1:8001/dashboard`.
