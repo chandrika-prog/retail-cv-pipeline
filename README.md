@@ -5,7 +5,7 @@ End-to-end retail analytics pipeline for the Purplle store intelligence challeng
 ## Setup
 
 ```powershell
-git clone <your-repo-url>
+git clone <https://github.com/chandrika-prog/retail-cv-pipeline.git>
 cd store-intelligence
 docker compose up --build
 ```
