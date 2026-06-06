@@ -38,6 +38,16 @@ Implemented highlights:
 - Docker and local demo commands
 - Pytest coverage for API behavior, store isolation, POS correlation, and staff color detection
 
+## Screenshots
+
+Store 1 dashboard:
+
+![Store 1 dashboard](docs/screenshots/dashboard-store1.png)
+
+Store 2 dashboard:
+
+![Store 2 dashboard](docs/screenshots/dashboard-store2.png)
+
 ## Dataset
 
 The current challenge files live under `data/challenge`:
