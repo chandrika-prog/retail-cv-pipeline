@@ -1,0 +1,19 @@
+FROM python:3.10-slim
+
+WORKDIR /workspace
+
+COPY requirements-railway.txt .
+RUN pip install --no-cache-dir -r requirements-railway.txt
+
+COPY app/ ./app/
+COPY data/challenge/store_layout.json ./data/challenge/store_layout.json
+COPY data/challenge/pos_transactions.csv ./data/challenge/pos_transactions.csv
+COPY deliverables/ ./deliverables/
+COPY load_pos.py railway_bootstrap.py ./
+
+RUN mkdir -p /data
+
+ENV PYTHONPATH=/workspace/app
+ENV DATABASE_URL=sqlite:////data/store.db
+
+CMD ["sh", "-c", "python railway_bootstrap.py && uvicorn main:app --app-dir app --host 0.0.0.0 --port ${PORT:-8000}"]

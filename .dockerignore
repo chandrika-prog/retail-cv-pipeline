@@ -12,3 +12,7 @@ __pycache__
 events_*.jsonl
 events_store*.jsonl
 data
+!data/
+!data/challenge/
+!data/challenge/store_layout.json
+!data/challenge/pos_transactions.csv

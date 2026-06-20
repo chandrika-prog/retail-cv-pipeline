@@ -16,6 +16,30 @@ Open:
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/health
 
+## Deploy to Railway
+
+Railway uses `railway.toml` and `Dockerfile.railway` to build a lightweight hosted dashboard/API image. The container listens on Railway's injected `PORT` and automatically seeds the submitted event log plus POS transactions into SQLite.
+
+1. Open [Railway](https://railway.com/) and create a new project.
+2. Choose **Deploy from GitHub repo**.
+3. Select `chandrika-prog/retail-cv-pipeline`.
+4. Wait for the deployment health check at `/health` to pass.
+5. In the service settings, open **Networking** and click **Generate Domain**.
+6. Open `https://<generated-domain>/dashboard`.
+
+Optional persistent database:
+
+1. Add a Railway volume to the service.
+2. Set its mount path to `/data`.
+
+The Railway image already uses:
+
+```text
+DATABASE_URL=sqlite:////data/store.db
+```
+
+Without a volume, the demo still works and reseeds data after a restart, but runtime changes are not persistent. The Railway deployment serves the pre-generated event log; run the full YOLO/ByteTrack video pipeline locally because the large MP4 challenge files are intentionally not stored in GitHub.
+
 ## Submission Notes
 
 This repository contains the application code, tests, Docker setup, store configuration, POS sample, layout images, and sample event loader. The MP4 camera clips are intentionally not committed because several files are larger than GitHub's normal 100 MB file limit. To run full video detection, place the extracted Store 1 and Store 2 MP4 files under `data/challenge` using the same folder names from the challenge dataset.
