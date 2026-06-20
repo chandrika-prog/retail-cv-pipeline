@@ -5,6 +5,7 @@ data/clips/
 # Python
 venv/
 __pycache__/
+.runtime/
 *.pyc
 *.pt
 
